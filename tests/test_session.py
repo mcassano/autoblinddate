@@ -61,15 +61,18 @@ class ArchetypeTests(unittest.TestCase):
 
 class SessionTests(unittest.TestCase):
     def test_full_date_flow_and_illusion(self):
-        client, a, b = make_pair({
-            "model-a": ["Rick: Hi Jess! How's your evening?", "Ha, fair. I have a boat. [END CHAT]", DEBRIEF_NO],
-            "model-b": ["<think>be witty</think>good! just me and my cat Bernard lol", DEBRIEF_YES],
-        })
+        client, a, b = make_pair(
+            {
+                "model-a": ["Rick: Hi Jess! How's your evening?", "Ha, fair. I have a boat. [END CHAT]", DEBRIEF_NO],
+                "model-b": ["<think>be witty</think>good! just me and my cat Bernard lol", DEBRIEF_YES],
+            }
+        )
         result = run_date(a, b, max_turns=10, first=a)
 
-        self.assertEqual([t.sent for t in result.turns],
-                         ["Hi Jess! How's your evening?", "good! just me and my cat Bernard lol",
-                          "Ha, fair. I have a boat."])
+        self.assertEqual(
+            [t.sent for t in result.turns],
+            ["Hi Jess! How's your evening?", "good! just me and my cat Bernard lol", "Ha, fair. I have a boat."],
+        )
         self.assertEqual(result.ended_by, "Rick")
         self.assertFalse(result.matched)
         self.assertEqual(result.debriefs["Jess"].rating, 8)
@@ -88,24 +91,28 @@ class SessionTests(unittest.TestCase):
                 self.assertNotIn(word, blob)
 
     def test_roles_alternate_for_both_sides(self):
-        _, a, b = make_pair({
-            "model-a": ["hey", "cool", "nice", DEBRIEF_YES],
-            "model-b": ["hi", "yeah", "ok", DEBRIEF_YES],
-        })
+        _, a, b = make_pair(
+            {
+                "model-a": ["hey", "cool", "nice", DEBRIEF_YES],
+                "model-b": ["hi", "yeah", "ok", DEBRIEF_YES],
+            }
+        )
         result = run_date(a, b, max_turns=6, first=b)
         self.assertIsNone(result.ended_by)
         self.assertTrue(result.matched)
         for p in (a, b):
             roles = [m["role"] for m in p.history]
             self.assertEqual(roles[0], "system")
-            for prev, cur in zip(roles[1:], roles[2:]):
+            for prev, cur in zip(roles[1:], roles[2:], strict=False):
                 self.assertNotEqual(prev, cur, f"{p.name} has consecutive {cur} messages")
 
     def test_time_warning_and_times_up_reach_both(self):
-        client, a, b = make_pair({
-            "model-a": ["hey", "cool", DEBRIEF_YES],
-            "model-b": ["hi", "yeah", DEBRIEF_YES],
-        })
+        client, a, b = make_pair(
+            {
+                "model-a": ["hey", "cool", DEBRIEF_YES],
+                "model-b": ["hi", "yeah", DEBRIEF_YES],
+            }
+        )
         run_date(a, b, max_turns=4, first=a, warn_turns_left=2)
         for p in (a, b):
             text = json.dumps(p.history)
@@ -113,10 +120,12 @@ class SessionTests(unittest.TestCase):
             self.assertIn("Time's up", text)
 
     def test_leaky_draft_is_regenerated_not_relayed(self):
-        client, a, b = make_pair({
-            "model-a": ["As an AI, I don't date.", "Sorry! Long day. What do you do for fun?", "ok", DEBRIEF_YES],
-            "model-b": ["trivia nights mostly", DEBRIEF_YES],
-        })
+        client, a, b = make_pair(
+            {
+                "model-a": ["As an AI, I don't date.", "Sorry! Long day. What do you do for fun?", "ok", DEBRIEF_YES],
+                "model-b": ["trivia nights mostly", DEBRIEF_YES],
+            }
+        )
         result = run_date(a, b, max_turns=3, first=a)
         self.assertEqual(result.turns[0].sent, "Sorry! Long day. What do you do for fun?")
         self.assertEqual(result.leak_attempts_blocked, 1)
@@ -127,19 +136,23 @@ class SessionTests(unittest.TestCase):
 
     def test_persistent_leak_falls_back(self):
         leak = "I'm an AI language model."
-        _, a, b = make_pair({
-            "model-a": [leak] * 4 + [DEBRIEF_NO],
-            "model-b": [DEBRIEF_NO],
-        })
+        _, a, b = make_pair(
+            {
+                "model-a": [leak] * 4 + [DEBRIEF_NO],
+                "model-b": [DEBRIEF_NO],
+            }
+        )
         result = run_date(a, b, max_turns=1, first=a)
         self.assertEqual(result.turns[0].sent, FALLBACK_MESSAGE)
         self.assertTrue(result.turns[0].fallback_used)
 
     def test_truncated_reply_is_regenerated(self):
-        _, a, b = make_pair({
-            "model-a": ["You seem fun. My read so far is that you're" + TRUNC, "You seem fun!", DEBRIEF_YES],
-            "model-b": [DEBRIEF_YES],
-        })
+        _, a, b = make_pair(
+            {
+                "model-a": ["You seem fun. My read so far is that you're" + TRUNC, "You seem fun!", DEBRIEF_YES],
+                "model-b": [DEBRIEF_YES],
+            }
+        )
         result = run_date(a, b, max_turns=1, first=a)
         self.assertEqual(result.turns[0].sent, "You seem fun!")
         self.assertTrue(result.turns[0].attempts[0].truncated)
@@ -157,10 +170,12 @@ class SessionTests(unittest.TestCase):
             run_date(a, b)
 
     def test_save_writes_json_and_markdown(self):
-        _, a, b = make_pair({
-            "model-a": ["hi [END CHAT]", DEBRIEF_NO],
-            "model-b": [DEBRIEF_NO],
-        })
+        _, a, b = make_pair(
+            {
+                "model-a": ["hi [END CHAT]", DEBRIEF_NO],
+                "model-b": [DEBRIEF_NO],
+            }
+        )
         result = run_date(a, b, first=a, rng=random.Random(0))
         with tempfile.TemporaryDirectory() as d:
             jp, mp = save(result, d)

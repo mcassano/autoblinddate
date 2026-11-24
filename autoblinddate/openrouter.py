@@ -1,4 +1,5 @@
 """Minimal OpenRouter chat-completions client (stdlib only)."""
+
 from __future__ import annotations
 
 import json
@@ -24,8 +25,7 @@ class Completion:
 
 
 class ChatClient(Protocol):
-    def complete(self, model: str, messages: list[Message], *, temperature: float,
-                 max_tokens: int) -> Completion: ...
+    def complete(self, model: str, messages: list[Message], *, temperature: float, max_tokens: int) -> Completion: ...
 
 
 class OpenRouterError(RuntimeError):
@@ -55,22 +55,25 @@ class OpenRouterClient:
     app_title: str = "autoblinddate"
 
     @classmethod
-    def from_env(cls) -> "OpenRouterClient":
+    def from_env(cls) -> OpenRouterClient:
         key = os.environ.get("OPENROUTER_API_KEY")
         if not key:
             raise OpenRouterError("OPENROUTER_API_KEY is not set (put it in .env or the environment).")
         return cls(api_key=key)
 
-    def complete(self, model: str, messages: list[Message], *, temperature: float = 0.9,
-                 max_tokens: int = 1200) -> Completion:
-        body = json.dumps({
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            # Ask reasoning models to keep their thinking out of the content field.
-            "reasoning": {"exclude": True},
-        }).encode()
+    def complete(
+        self, model: str, messages: list[Message], *, temperature: float = 0.9, max_tokens: int = 1200
+    ) -> Completion:
+        body = json.dumps(
+            {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                # Ask reasoning models to keep their thinking out of the content field.
+                "reasoning": {"exclude": True},
+            }
+        ).encode()
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -102,6 +105,6 @@ class OpenRouterClient:
                         return Completion(content, truncated=choice.get("finish_reason") == "length")
                     last_err = OpenRouterError("Model returned empty content")
             if attempt < self.max_retries:
-                time.sleep(min(30.0, (2 ** attempt) + random.random()))
+                time.sleep(min(30.0, (2**attempt) + random.random()))
         assert last_err is not None
         raise last_err

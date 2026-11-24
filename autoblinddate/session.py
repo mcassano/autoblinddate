@@ -1,12 +1,13 @@
 """Runs one blind date between two participants and records everything."""
+
 from __future__ import annotations
 
 import json
 import random
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
 
 from . import prompts
 from .participant import Debrief, Participant, Turn
@@ -17,7 +18,7 @@ class DateResult:
     a: Participant
     b: Participant
     turns: list[Turn]
-    ended_by: str | None             # name of who tapped End Chat, or None if time ran out
+    ended_by: str | None  # name of who tapped End Chat, or None if time ran out
     debriefs: dict[str, Debrief] = field(default_factory=dict)
     started_at: str = ""
     finished_at: str = ""
@@ -34,8 +35,16 @@ class DateResult:
 OnTurn = Callable[[Turn, int], None]
 
 
-def run_date(a: Participant, b: Participant, *, max_turns: int = 30, first: Participant | None = None,
-             warn_turns_left: int = 4, on_turn: OnTurn | None = None, rng: random.Random | None = None) -> DateResult:
+def run_date(
+    a: Participant,
+    b: Participant,
+    *,
+    max_turns: int = 30,
+    first: Participant | None = None,
+    warn_turns_left: int = 4,
+    on_turn: OnTurn | None = None,
+    rng: random.Random | None = None,
+) -> DateResult:
     """Alternate turns until someone ends the chat or the clock runs out, then debrief both sides privately."""
     if a.name.casefold() == b.name.casefold():
         raise ValueError(f"Both participants are named {a.name!r}; give one a different name.")
@@ -80,10 +89,16 @@ def _now() -> str:
 
 # ---------------------------------------------------------------- transcripts
 
+
 def to_json(result: DateResult) -> dict:
     def side(p: Participant) -> dict:
-        return {"name": p.name, "archetype": p.archetype.key, "model": p.model,
-                "temperature": p.temperature, "history": p.history}
+        return {
+            "name": p.name,
+            "archetype": p.archetype.key,
+            "model": p.model,
+            "temperature": p.temperature,
+            "history": p.history,
+        }
 
     return {
         "started_at": result.started_at,
@@ -94,10 +109,14 @@ def to_json(result: DateResult) -> dict:
         "leak_attempts_blocked": result.leak_attempts_blocked,
         "turns": [
             {
-                "speaker": t.speaker, "sent": t.sent, "ended": t.ended, "fallback_used": t.fallback_used,
-                "attempts": [{"raw": at.raw, "leaks": at.result.leaks, "edits": at.result.edits,
-                              "truncated": at.truncated}
-                             for at in t.attempts],
+                "speaker": t.speaker,
+                "sent": t.sent,
+                "ended": t.ended,
+                "fallback_used": t.fallback_used,
+                "attempts": [
+                    {"raw": at.raw, "leaks": at.result.leaks, "edits": at.result.edits, "truncated": at.truncated}
+                    for at in t.attempts
+                ],
             }
             for t in result.turns
         ],
@@ -128,7 +147,8 @@ def to_markdown(result: DateResult) -> str:
     lines += ["## Debrief", ""]
     for name, d in result.debriefs.items():
         meet = {True: "YES", False: "NO", None: "?"}[d.meet]
-        lines.append(f"- **{name}**: meet again? **{meet}** · rating {d.rating if d.rating is not None else '?'}/10 · {d.why}")
+        rating = d.rating if d.rating is not None else "?"
+        lines.append(f"- **{name}**: meet again? **{meet}** · rating {rating}/10 · {d.why}")
     lines += ["", f"**Result: {'💘 It’s a match!' if result.matched else 'No match.'}**"]
     if result.leak_attempts_blocked:
         lines.append(f"\n_Illusion guard blocked {result.leak_attempts_blocked} draft(s) before relay._")

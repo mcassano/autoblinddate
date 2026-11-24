@@ -1,4 +1,5 @@
 """Command-line interface: `python -m autoblinddate`."""
+
 from __future__ import annotations
 
 import argparse
@@ -54,8 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--random", action="store_true", help="pick a random mutually-compatible pair")
     p.add_argument("--name-a", help="override participant A's first name")
     p.add_argument("--name-b", help="override participant B's first name")
-    p.add_argument("--model", default=os.environ.get("AUTOBLINDDATE_MODEL", DEFAULT_MODEL),
-                   help=f"OpenRouter model for both sides (default: {DEFAULT_MODEL})")
+    p.add_argument(
+        "--model",
+        default=os.environ.get("AUTOBLINDDATE_MODEL", DEFAULT_MODEL),
+        help=f"OpenRouter model for both sides (default: {DEFAULT_MODEL})",
+    )
     p.add_argument("--model-a", help="OpenRouter model for A (overrides --model)")
     p.add_argument("--model-b", help="OpenRouter model for B (overrides --model)")
     p.add_argument("--temperature", type=float, default=0.9)
@@ -64,8 +68,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, help="random seed for pairing / who goes first")
     p.add_argument("--out", default="transcripts", help="directory for transcripts (default: transcripts)")
     p.add_argument("--no-save", action="store_true", help="don't write transcripts")
-    p.add_argument("--allow-incompatible", action="store_true",
-                   help="run even if the archetypes' stated preferences don't match")
+    p.add_argument(
+        "--allow-incompatible", action="store_true", help="run even if the archetypes' stated preferences don't match"
+    )
     p.add_argument("--show-guard", action="store_true", help="print drafts the illusion guard blocked or edited")
     return p
 
@@ -95,9 +100,12 @@ def main(argv: list[str] | None = None) -> int:
 
     arch_a, arch_b = arch_a.with_name(args.name_a), arch_b.with_name(args.name_b)
     if not arch_a.compatible_with(arch_b) and not args.allow_incompatible:
-        print(f"{arch_a.name} ({arch_a.gender}, seeks {'/'.join(arch_a.seeking)}) and {arch_b.name} "
-              f"({arch_b.gender}, seeks {'/'.join(arch_b.seeking)}) aren't each other's type. "
-              "Pass --allow-incompatible to run anyway.", file=sys.stderr)
+        print(
+            f"{arch_a.name} ({arch_a.gender}, seeks {'/'.join(arch_a.seeking)}) and {arch_b.name} "
+            f"({arch_b.gender}, seeks {'/'.join(arch_b.seeking)}) aren't each other's type. "
+            "Pass --allow-incompatible to run anyway.",
+            file=sys.stderr,
+        )
         return 2
     if arch_a.name.casefold() == arch_b.name.casefold():
         print(f"Both participants are named {arch_a.name}; use --name-b to rename one.", file=sys.stderr)

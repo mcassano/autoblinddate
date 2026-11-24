@@ -5,6 +5,7 @@ is anything other than a person typing into a phone. The only non-human voice
 in the conversation is the dating app ("Kindling"), which speaks in clearly
 marked notification lines the participant is told to expect.
 """
+
 from __future__ import annotations
 
 from .archetypes import Archetype
@@ -54,8 +55,10 @@ app treats it as tapping the End Chat button and {other_name} won't see the tag.
 
 
 def opener_notice(other_name: str) -> str:
-    return notice(f"You're connected with {other_name}! Your Blind Date chat is open for {CHAT_MINUTES} minutes. "
-                  "You go first: say hi 👋")
+    return notice(
+        f"You're connected with {other_name}! Your Blind Date chat is open for {CHAT_MINUTES} minutes. "
+        "You go first: say hi 👋"
+    )
 
 
 def time_warning_notice() -> str:
@@ -84,5 +87,7 @@ def debrief_question(other_name: str) -> str:
 def retry_nudge(me: Archetype, other_name: str) -> str:
     """Appended to the system prompt for a single regeneration only. It is never
     shown to the counterpart and says nothing about who the counterpart is."""
-    return (f"\n\n(Your last draft didn't send. Write just the next text message you, {me.name}, would send "
-            f"{other_name} right now, in your own voice: only the message itself.)")
+    return (
+        f"\n\n(Your last draft didn't send. Write just the next text message you, {me.name}, would send "
+        f"{other_name} right now, in your own voice: only the message itself.)"
+    )

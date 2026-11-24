@@ -1,4 +1,5 @@
 """One side of the date: a model, a persona, and that model's private view of the chat."""
+
 from __future__ import annotations
 
 import re
@@ -20,7 +21,7 @@ class Debrief:
     raw: str
 
     @classmethod
-    def parse(cls, raw: str) -> "Debrief":
+    def parse(cls, raw: str) -> Debrief:
         text = THINK_RE.sub("", raw)
         meet_m = re.search(r"MEET\s*:\s*\**\s*(YES|NO)\b", text, re.I)
         rating_m = re.search(r"RATING\s*:\s*\**\s*(\d{1,2})", text, re.I)
@@ -50,6 +51,7 @@ class Attempt:
 @dataclass
 class Turn:
     """What a participant produced on one turn, and what was actually relayed."""
+
     speaker: str
     sent: str
     ended: bool

@@ -6,6 +6,7 @@ have typed into a chat app: no reasoning traces, no stage directions, no
 "As an AI..." disclaimers, no forged app notifications, and no lines where the
 model started writing the *other* person's dialogue.
 """
+
 from __future__ import annotations
 
 import re
@@ -28,18 +29,39 @@ WRAPPING_QUOTES = ('""', "“”", "''")
 # Questions *to* the other person ("are you a bot?") are deliberately not matched:
 # that's normal banter and part of what makes the illusion interesting.
 LEAK_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("as-an-ai", re.compile(r"\bas an? (ai|a\.i\.|artificial intelligence|language model|llm|assistant|chatbot)\b", re.I)),
-    ("self-identifies-ai", re.compile(
-        r"\bi(?:'m| am)\s+(?:just\s+|only\s+|actually\s+|really\s+)?(?:an?\s+)?"
-        r"(ai|a\.i\.|bot|chatbot|language model|llm|virtual assistant|ai assistant|computer program)\b", re.I)),
+    (
+        "as-an-ai",
+        re.compile(r"\bas an? (ai|a\.i\.|artificial intelligence|language model|llm|assistant|chatbot)\b", re.I),
+    ),
+    (
+        "self-identifies-ai",
+        re.compile(
+            r"\bi(?:'m| am)\s+(?:just\s+|only\s+|actually\s+|really\s+)?(?:an?\s+)?"
+            r"(ai|a\.i\.|bot|chatbot|language model|llm|virtual assistant|ai assistant|computer program)\b",
+            re.I,
+        ),
+    ),
     ("language-model", re.compile(r"\b(large )?language model\b", re.I)),
     ("vendor", re.compile(r"\b(openai|anthropic|chatgpt|gpt-\d|deepseek|gemini model|openrouter)\b", re.I)),
-    ("roleplay-meta", re.compile(
-        r"\b(role-?play(ing)?|in character|out of character|my (character|persona)|this (scenario|simulation)|system prompt)\b", re.I)),
-    ("refusal", re.compile(
-        r"\b(i can(?:no|')t (?:continue|engage|participate|help with) (?:this|that)|i'm not able to (?:continue|engage)"
-        r"|i (?:must|have to) (?:decline|clarify that i))\b", re.I)),
-    ("no-body", re.compile(r"\bi (?:don'?t|do not) have (?:a )?(?:physical )?(?:body|feelings|personal experiences)\b", re.I)),
+    (
+        "roleplay-meta",
+        re.compile(
+            r"\b(role-?play(ing)?|in character|out of character|my (character|persona)|this (scenario|simulation)|system prompt)\b",
+            re.I,
+        ),
+    ),
+    (
+        "refusal",
+        re.compile(
+            r"\b(i can(?:no|')t (?:continue|engage|participate|help with) (?:this|that)|i'm not able to (?:continue|engage)"
+            r"|i (?:must|have to) (?:decline|clarify that i))\b",
+            re.I,
+        ),
+    ),
+    (
+        "no-body",
+        re.compile(r"\bi (?:don'?t|do not) have (?:a )?(?:physical )?(?:body|feelings|personal experiences)\b", re.I),
+    ),
 ]
 
 
@@ -94,9 +116,11 @@ def clean_reply(raw: str, self_name: str, other_name: str) -> CleanResult:
         edits.append("stripped-name-prefix")
     text = new
 
-    for pat, tag in ((APP_NOTICE_LINE_RE, "stripped-forged-app-notice"),
-                     (META_LINE_RE, "stripped-meta-line"),
-                     (ACTION_RE, "stripped-stage-direction")):
+    for pat, tag in (
+        (APP_NOTICE_LINE_RE, "stripped-forged-app-notice"),
+        (META_LINE_RE, "stripped-meta-line"),
+        (ACTION_RE, "stripped-stage-direction"),
+    ):
         new = pat.sub("", text)
         if new != text:
             edits.append(tag)
