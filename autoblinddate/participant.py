@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from . import prompts
 from .archetypes import Archetype
-from .openrouter import ChatClient, Message
+from .openrouter import ChatClient, Completion, Message
 from .sanitize import THINK_RE, CleanResult, clean_reply, detect_leaks
 
 FALLBACK_MESSAGE = "sorry, got distracted for a sec. where were we?"
@@ -40,6 +40,11 @@ class Debrief:
 class Attempt:
     raw: str
     result: CleanResult
+    truncated: bool = False
+
+    @property
+    def ok(self) -> bool:
+        return self.result.ok and not self.truncated
 
 
 @dataclass
@@ -59,7 +64,7 @@ class Participant:
     other_name: str
     client: ChatClient
     temperature: float = 0.9
-    max_tokens: int = 400
+    max_tokens: int = 1200
     max_retries: int = 3
     history: list[Message] = field(default_factory=list)
     _inbox: list[str] = field(default_factory=list)
@@ -82,7 +87,7 @@ class Participant:
             self.history.append({"role": "user", "content": "\n\n".join(self._inbox)})
             self._inbox.clear()
 
-    def _call(self, nudge: str = "") -> str:
+    def _call(self, nudge: str = "") -> Completion:
         messages = self.history
         if nudge:
             messages = [{"role": "system", "content": self.history[0]["content"] + nudge}, *self.history[1:]]
@@ -94,15 +99,18 @@ class Participant:
         attempts: list[Attempt] = []
         nudge = ""
         for _ in range(self.max_retries + 1):
-            raw = self._call(nudge)
-            result = clean_reply(raw, self.name, self.other_name)
-            attempts.append(Attempt(raw, result))
-            if result.ok:
+            completion = self._call(nudge)
+            result = clean_reply(completion.text, self.name, self.other_name)
+            attempt = Attempt(completion.text, result, completion.truncated)
+            attempts.append(attempt)
+            if attempt.ok:
                 return self._commit(result.text, result.ended, attempts)
             nudge = prompts.retry_nudge(self.archetype, self.other_name)
-        # Out of retries: salvage the clean sentences of the last attempt, or send a bland human filler.
+        # Out of retries: salvage the clean, complete sentences of the last attempt, or send a bland filler.
         last = attempts[-1].result
         salvaged = _drop_leaky_sentences(last.text)
+        if attempts[-1].truncated:
+            salvaged = _drop_unfinished_tail(salvaged)
         if salvaged:
             return self._commit(salvaged, last.ended, attempts, fallback=True)
         return self._commit(FALLBACK_MESSAGE, False, attempts, fallback=True)
@@ -116,7 +124,7 @@ class Participant:
     def debrief(self) -> Debrief:
         self.deliver(prompts.debrief_question(self.other_name))
         self._flush_inbox()
-        raw = self._call()
+        raw = self._call().text
         self.history.append({"role": "assistant", "content": raw})
         return Debrief.parse(raw)
 
@@ -125,3 +133,9 @@ def _drop_leaky_sentences(text: str) -> str:
     sentences = re.split(r"(?<=[.!?])\s+", text)
     kept = [s for s in sentences if s and not detect_leaks(s)]
     return " ".join(kept).strip()
+
+
+def _drop_unfinished_tail(text: str) -> str:
+    """Cut a reply that ran out of tokens back to its last complete sentence."""
+    m = re.search(r"^.*[.!?…)](?=\s|$)", text, re.S)
+    return m.group(0).strip() if m else ""

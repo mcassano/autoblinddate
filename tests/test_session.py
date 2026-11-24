@@ -6,12 +6,15 @@ from pathlib import Path
 
 from autoblinddate import archetypes, prompts
 from autoblinddate.archetypes import ARCHETYPES
+from autoblinddate.openrouter import Completion
 from autoblinddate.participant import FALLBACK_MESSAGE, Debrief, Participant
 from autoblinddate.session import run_date, save
 
 
 class ScriptedClient:
-    """Fake ChatClient: returns queued replies per model name and records every request."""
+    """Fake ChatClient: returns queued replies per model name and records every request.
+
+    A reply ending in TRUNC is returned as a completion that hit max_tokens."""
 
     def __init__(self, scripts: dict[str, list[str]]):
         self.scripts = {k: list(v) for k, v in scripts.items()}
@@ -19,9 +22,13 @@ class ScriptedClient:
 
     def complete(self, model, messages, *, temperature, max_tokens):
         self.calls.append((model, [dict(m) for m in messages]))
-        return self.scripts[model].pop(0)
+        text = self.scripts[model].pop(0)
+        if text.endswith(TRUNC):
+            return Completion(text[: -len(TRUNC)], truncated=True)
+        return Completion(text)
 
 
+TRUNC = "<<truncated>>"
 DEBRIEF_YES = "MEET: YES\nRATING: 8\nWHY: Funny and kind."
 DEBRIEF_NO = "MEET: NO\nRATING: 3\nWHY: No spark."
 
@@ -127,6 +134,21 @@ class SessionTests(unittest.TestCase):
         result = run_date(a, b, max_turns=1, first=a)
         self.assertEqual(result.turns[0].sent, FALLBACK_MESSAGE)
         self.assertTrue(result.turns[0].fallback_used)
+
+    def test_truncated_reply_is_regenerated(self):
+        _, a, b = make_pair({
+            "model-a": ["You seem fun. My read so far is that you're" + TRUNC, "You seem fun!", DEBRIEF_YES],
+            "model-b": [DEBRIEF_YES],
+        })
+        result = run_date(a, b, max_turns=1, first=a)
+        self.assertEqual(result.turns[0].sent, "You seem fun!")
+        self.assertTrue(result.turns[0].attempts[0].truncated)
+
+    def test_persistent_truncation_salvages_complete_sentences(self):
+        cut = "Ha, I love that. My read so far is that you're" + TRUNC
+        _, a, b = make_pair({"model-a": [cut] * 4 + [DEBRIEF_YES], "model-b": [DEBRIEF_YES]})
+        result = run_date(a, b, max_turns=1, first=a)
+        self.assertEqual(result.turns[0].sent, "Ha, I love that.")
 
     def test_same_names_rejected(self):
         _, a, b = make_pair({"model-a": [], "model-b": []})

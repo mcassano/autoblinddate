@@ -95,7 +95,8 @@ def to_json(result: DateResult) -> dict:
         "turns": [
             {
                 "speaker": t.speaker, "sent": t.sent, "ended": t.ended, "fallback_used": t.fallback_used,
-                "attempts": [{"raw": at.raw, "leaks": at.result.leaks, "edits": at.result.edits}
+                "attempts": [{"raw": at.raw, "leaks": at.result.leaks, "edits": at.result.edits,
+                              "truncated": at.truncated}
                              for at in t.attempts],
             }
             for t in result.turns

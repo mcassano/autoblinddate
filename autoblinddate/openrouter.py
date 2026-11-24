@@ -17,8 +17,15 @@ DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
 Message = dict[str, str]
 
 
+@dataclass(frozen=True)
+class Completion:
+    text: str
+    truncated: bool = False  # the model hit max_tokens mid-reply
+
+
 class ChatClient(Protocol):
-    def complete(self, model: str, messages: list[Message], *, temperature: float, max_tokens: int) -> str: ...
+    def complete(self, model: str, messages: list[Message], *, temperature: float,
+                 max_tokens: int) -> Completion: ...
 
 
 class OpenRouterError(RuntimeError):
@@ -55,7 +62,7 @@ class OpenRouterClient:
         return cls(api_key=key)
 
     def complete(self, model: str, messages: list[Message], *, temperature: float = 0.9,
-                 max_tokens: int = 400) -> str:
+                 max_tokens: int = 1200) -> Completion:
         body = json.dumps({
             "model": model,
             "messages": messages,
@@ -87,11 +94,12 @@ class OpenRouterClient:
                     last_err = OpenRouterError(f"OpenRouter error: {payload['error']}")
                 else:
                     try:
-                        content = payload["choices"][0]["message"].get("content") or ""
+                        choice = payload["choices"][0]
+                        content = choice["message"].get("content") or ""
                     except (KeyError, IndexError) as e:
                         raise OpenRouterError(f"Unexpected response shape: {str(payload)[:500]}") from e
                     if content.strip():
-                        return content
+                        return Completion(content, truncated=choice.get("finish_reason") == "length")
                     last_err = OpenRouterError("Model returned empty content")
             if attempt < self.max_retries:
                 time.sleep(min(30.0, (2 ** attempt) + random.random()))

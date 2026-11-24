@@ -121,9 +121,9 @@ def main(argv: list[str] | None = None) -> int:
     def on_turn(turn: Turn, _i: int) -> None:
         if args.show_guard:
             for att in turn.attempts:
-                if att.result.leaks or att.result.edits:
-                    tag = "BLOCKED" if att.result.leaks else "edited"
-                    detail = ", ".join(att.result.leaks + att.result.edits)
+                if att.result.leaks or att.result.edits or att.truncated:
+                    tag = "edited" if att.ok else "BLOCKED"
+                    detail = ", ".join(att.result.leaks + att.result.edits + (["truncated"] if att.truncated else []))
                     raw = textwrap.shorten(att.raw.replace("\n", " "), 200)
                     print(_c(DIM, f"   [guard {tag}: {detail}] {raw}"))
         name = _c(color[turn.speaker] + BOLD, f"{turn.speaker}:")
