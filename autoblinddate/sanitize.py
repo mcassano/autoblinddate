@@ -61,7 +61,7 @@ def detect_leaks(text: str) -> list[str]:
 
 def _speaker_prefix_re(names: list[str]) -> re.Pattern[str]:
     alts = "|".join(re.escape(n) for n in names if n)
-    return re.compile(rf"^\s*\**\s*(?:{alts})\s*\**\s*:\s*", re.IGNORECASE)
+    return re.compile(rf"^\s*\**\s*(?:{alts})\s*\**\s*:\s*\**\s*", re.IGNORECASE)
 
 
 def clean_reply(raw: str, self_name: str, other_name: str) -> CleanResult:
